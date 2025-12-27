@@ -1,86 +1,166 @@
+import sys
+import os
+import json
+import time
+from datetime import datetime
+
+# Add the backend directory to Python path
+backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.insert(0, backend_path)
+
 from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
-from bs4 import BeautifulSoup
-import time
-import json
-from datetime import datetime
 
-# ----------------------------
-# Selenium setup
-# ----------------------------
-options = Options()
-options.add_argument("--headless")
-options.add_argument("--disable-gpu")
-options.add_argument("--no-sandbox")
-options.add_argument("start-maximized")
-options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0 Safari/537.36")
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
-driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+from database.db import SessionLocal, engine, Base
+from database.models import UdemyCourse
 
-# ----------------------------
-# Target URL
-# ----------------------------
-search_query = "python"  # change topic
-base_url = f"https://www.udemy.com/courses/search/?q={search_query}&price=price-free-paid"
-driver.get(base_url)
-time.sleep(3)
+# Create tables
+Base.metadata.create_all(bind=engine)
 
-# ----------------------------
-# Scroll to load courses
-# ----------------------------
-SCROLL_PAUSE_TIME = 2
-last_height = driver.execute_script("return document.body.scrollHeight")
 
-for _ in range(20):  # scroll 20 times to load more courses
-    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-    time.sleep(SCROLL_PAUSE_TIME)
-    new_height = driver.execute_script("return document.body.scrollHeight")
-    if new_height == last_height:
-        break
-    last_height = new_height
+class UdemyScraper:
+    def __init__(self):
+        chrome_options = Options()
+        chrome_options.add_argument("--headless=new")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        chrome_options.add_argument("--window-size=1920,1080")
+        chrome_options.add_argument(
+            "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+        )
 
-# ----------------------------
-# Parse page
-# ----------------------------
-soup = BeautifulSoup(driver.page_source, "lxml")
-course_links = soup.find_all("a", href=True)
-courses = []
-added_links = set()
+        service = Service(ChromeDriverManager().install())
+        self.driver = webdriver.Chrome(service=service, options=chrome_options)
+        self.wait = WebDriverWait(self.driver, 15)
 
-for a in course_links:
-    href = a['href']
-    if href.startswith("/course/") and href not in added_links:
-        added_links.add(href)
-        # title
-        title_tag = a.find("div")
-        title = title_tag.text.strip() if title_tag else "N/A"
-        link = "https://www.udemy.com" + href
+    def scrape_courses(self, category="", max_pages=3, free_only=False):
+        """
+        Scrape Udemy courses.
+        category: string (e.g., "development/")
+        max_pages: number of pages to scrape
+        free_only: if True, scrape only free courses
+        """
+        all_courses = []
 
-        # price & provider
-        parent = a.parent
-        price_tag = parent.find("div", string=lambda s: s and ("$" in s or "Free" in s))
-        price = price_tag.text.strip() if price_tag else "N/A"
+        for page in range(1, max_pages + 1):
+            if free_only:
+                url = f"https://www.udemy.com/courses/{category}free/?p={page}"
+            else:
+                url = f"https://www.udemy.com/courses/{category}?p={page}"
 
-        provider_tag = parent.find("div", class_=lambda x: x and "instructor" in x.lower())
-        provider = provider_tag.text.strip() if provider_tag else "N/A"
+            print(f"\nScraping page {page}: {url}")
+            self.driver.get(url)
 
-        courses.append({
-            "id": len(courses)+1,
-            "title": title,
-            "link": link,
-            "provider": provider,
-            "price": price,
-            "scraped_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        })
+            # Wait for course cards to load
+            try:
+                self.wait.until(
+                    EC.presence_of_all_elements_located((By.CSS_SELECTOR, "div.popper--popper--2r2To"))
+                )
+            except:
+                print(f"Warning: Courses did not load on page {page}")
+                continue
 
-driver.quit()
+            # Get course cards
+            cards = self.driver.find_elements(By.CSS_SELECTOR, "div.popper--popper--2r2To a.udlite-custom-focus-visible.browse-course-card--link--3KIkQ")
 
-# ----------------------------
-# Save to JSON
-# ----------------------------
-with open(f"udemy_{search_query}_courses.json", "w", encoding="utf-8") as f:
-    json.dump(courses, f, ensure_ascii=False, indent=4)
+            print(f"Found {len(cards)} course cards on page {page}")
 
-print(f"Scraped {len(courses)} courses. Saved to udemy_{search_query}_courses.json")
+            for card in cards:
+                course = self.extract_course_data(card)
+                if course:
+                    all_courses.append(course)
+
+            # Optional: small delay to avoid detection
+            time.sleep(2)
+
+        return all_courses
+
+    def extract_course_data(self, card):
+        try:
+            link = card.get_attribute("href")
+            if not link:
+                return None
+
+            # Extract title
+            try:
+                title = card.find_element(By.CSS_SELECTOR, "div.udlite-focus-visible-target.udlite-heading-md").text.strip()
+            except:
+                title = "No title available"
+
+            # Extract price
+            try:
+                price = card.find_element(By.CSS_SELECTOR, "div.price-text--price-part--Tu6MH span").text.strip()
+            except:
+                price = "Unknown"
+
+            return {
+                "title": title,
+                "link": link.split("?")[0],
+                "price": price,
+                "provider": "Udemy"
+            }
+
+        except Exception as e:
+            print(f"Extraction error: {e}")
+            return None
+
+    def save_to_json(self, courses, filename="udemy_courses.json"):
+        path = os.path.join(os.path.dirname(__file__), filename)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(courses, f, indent=2, ensure_ascii=False)
+        print(f"Saved {len(courses)} courses to {filename}")
+
+    def save_to_database(self, courses):
+        db: Session = SessionLocal()
+        try:
+            for c in courses:
+                if not c.get("link"):
+                    continue
+
+                existing = db.query(UdemyCourse).filter_by(link=c["link"]).first()
+                if existing:
+                    existing.title = c["title"]
+                    existing.price = c["price"]
+                else:
+                    db.add(UdemyCourse(**c))
+
+                db.commit()
+        except IntegrityError:
+            db.rollback()
+        finally:
+            db.close()
+
+    def close(self):
+        self.driver.quit()
+
+
+def main():
+    scraper = UdemyScraper()
+    try:
+        courses = scraper.scrape_courses(
+            category="",  # Add a category like "development/" if needed
+            max_pages=3,  # Number of pages to scrape
+            free_only=False  # True for only free courses
+        )
+
+        if courses:
+            scraper.save_to_json(courses)
+            scraper.save_to_database(courses)
+            print(f"\nSUCCESS: Scraped {len(courses)} courses")
+        else:
+            print("No courses found")
+
+    finally:
+        scraper.close()
+
+
+if __name__ == "__main__":
+    main()

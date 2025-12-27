@@ -1,21 +1,23 @@
-from sqlalchemy import Column, Integer, String, DateTime, Float, Text
+from sqlalchemy import Boolean, Column, Integer, String, DateTime, Text
 from sqlalchemy.sql import func
 from .db import Base
+
 
 # Coursera Courses (existing)
 class Course(Base):
     __tablename__ = "courses"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(500), nullable=False)
     link = Column(String(500), nullable=False, unique=True)
     provider = Column(String(200))
     scraped_at = Column(DateTime(timezone=True), server_default=func.now())
 
+
 # Udemy Courses (existing)
 class UdemyCourse(Base):
     __tablename__ = "udemy_courses"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(255), nullable=False)
     link = Column(String(255), nullable=False, unique=True)
@@ -23,10 +25,11 @@ class UdemyCourse(Base):
     price = Column(String(50), default="Free")
     scraped_at = Column(DateTime(timezone=True), server_default=func.now())
 
+
 # Devpost Hackathons (existing)
 class Hackathon(Base):
     __tablename__ = "hackathons"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(500), nullable=False)
     link = Column(String(500), nullable=False, unique=True)
@@ -41,10 +44,11 @@ class Hackathon(Base):
     days_left = Column(String(50))
     scraped_at = Column(DateTime(timezone=True), server_default=func.now())
 
+
 # LabLab Hackathons (NEW)
 class LablabHackathon(Base):
     __tablename__ = "lablab_hackathons"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(500), nullable=False)
     link = Column(String(500), nullable=False, unique=True)
@@ -59,4 +63,23 @@ class LablabHackathon(Base):
     end_date = Column(DateTime(timezone=True))
     image_url = Column(String(500))
     scraped_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+
+# Indeed Internships (NEW) – keep ONLY this one
+class Internship(Base):
+    __tablename__ = "student_internships"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(500), nullable=False)
+    company = Column(String(300))
+    location = Column(String(200))
+    is_remote = Column(Boolean, default=False)
+    description = Column(Text)
+    link = Column(String(500), unique=True, nullable=False, index=True)
+    student_focus = Column(Boolean, default=True, index=True)
+    scraped_at = Column(DateTime(timezone=True), server_default=func.now())
