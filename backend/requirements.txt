@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+selenium
+webdriver-manager
+beautifulsoup4
+requests
+lxml
+reportlab
+sqlalchemy
+mysql-connector-python
