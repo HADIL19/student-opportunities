@@ -5,7 +5,7 @@ const Content = () => {
   const cards = [
     {
       title: "Hackathons",
-      path: "/hackathons",
+      path: "/Hackathons",
       icon: (
         <svg viewBox="0 0 100 60" className="w-32 h-20 mb-4 opacity-40" fill="none" stroke="currentColor" strokeWidth="1.5">
           <rect x="10" y="5" width="80" height="50" rx="8" />

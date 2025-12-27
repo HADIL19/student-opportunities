@@ -2,7 +2,7 @@ import React from 'react';
 
 const Description = () => {
   return (
-    <div className="w-full px-4 py-10 bg-[#fdf2e9]">
+    <div id="about-section" className=" w-full px-4 py-10 bg-[#fdf2e9]">
       <div className="max-w-7xl mx-auto border-2 border-[#bf5b00] rounded-[50px] px-6 py-10 md:py-14 text-center ">
         
         {/* Decorative Heading */}
