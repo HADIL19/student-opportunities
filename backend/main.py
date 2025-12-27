@@ -1,17 +1,18 @@
-from fastapi import FastAPI, Depends
-from sqlalchemy.orm import Session
-from database import get_db
-from models import Course
-from scrapers.courses.coursera_scraper import scrape_coursera, save_courses_to_db
+from fastapi import FastAPI
+from routers import courses_router, hackathons_router, internships_router
+from database.db import Base, engine
+from database import models
 
-app = FastAPI()
+# Create tables if they don't exist (optional, since you already did it)
+Base.metadata.create_all(bind=engine)
 
-@app.get("/courses")
-def get_courses(db: Session = Depends(get_db)):
-    return db.query(Course).all()
+app = FastAPI(title="Student Opportunities API")
 
-@app.post("/scrape/coursera")
-def scrape_and_save_courses():
-    data = scrape_coursera()
-    save_courses_to_db(data)
-    return {"message": f"Scraped and saved {len(data)} courses!"}
+# Include routers
+app.include_router(courses_router.router)
+app.include_router(hackathons_router.router)
+app.include_router(internships_router.router)
+
+@app.get("/")
+def home():
+    return {"message": "Welcome to the Student Opportunities API"}
