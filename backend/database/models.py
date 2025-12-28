@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime,Text
+from sqlalchemy import Column, Integer, String, DateTime,Text, Float
 from sqlalchemy.sql import func
 from .connection import Base
 
@@ -81,3 +81,27 @@ class Competition(Base):
     managed_by_devpost = Column(String(10))
     days_left = Column(String(50))
     scraped_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class Internship(Base):
+    __tablename__ = "internships"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    position_name = Column(String(255), nullable=False)
+    company = Column(String(255), nullable=False)
+    location = Column(String(200))
+    salary = Column(String(100))
+    job_type = Column(String(255))  # Stored as comma-separated values
+    description = Column(Text)
+    rating = Column(Float, default=0.0)
+    reviews_count = Column(Integer, default=0)
+    posted_at = Column(String(100))
+    posting_date_parsed = Column(DateTime(timezone=True))
+    url = Column(String(500), nullable=False, unique=True)
+    external_apply_link = Column(String(500))
+    search_position = Column(String(255))
+    scraped_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
