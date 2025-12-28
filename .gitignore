@@ -21,7 +21,7 @@ dist-ssr/
 # Python / FastAPI
 # ======================
 __pycache__/
-*.py[cod]
+*.pyc
 *.pyo
 *.pyd
 *.so
