@@ -252,32 +252,6 @@ flowchart TD
     Close --> End[End]
 ```
 
-#### Key Techniques
-
-```python
-# Example: Coursera Scraper Pattern
-
-# 1. STEALTH MODE (bypass bot detection)
-options.add_argument("--disable-blink-features=AutomationControlled")
-options.add_experimental_option("excludeSwitches", ["enable-automation"])
-
-# 2. MULTIPLE SELECTORS (resilience to UI changes)
-selectors = [
-    "div[data-testid='product-card-cds']",  # Primary
-    "[data-testid*='product-card']",         # Fallback 1
-    "li[class*='cds-ProductCard']"           # Fallback 2
-]
-
-# 3. SCROLL PAGINATION (infinite scroll sites)
-driver.execute_script("window.scrollTo(0, document.body.scrollHeight)")
-time.sleep(2)  # Respectful delay
-
-# 4. DEDUPLICATION (check before insert)
-existing = db.query(Course).filter(Course.link == link).first()
-if not existing:
-    db.add(Course(title=title, link=link))
-```
-
 ### 2. FastAPI Backend
 
 #### REST API Design
@@ -298,20 +272,7 @@ graph LR
     G --> H[JSON Response]
 ```
 
-#### Pagination Pattern
 
-```python
-@router.get("/courses/coursera")
-def get_coursera_courses(
-    skip: int = 0,              # Offset
-    limit: int | None = None,   # Optional limit
-    database: Session = Depends(get_db)
-):
-    query = database.query(models.Course).offset(skip)
-    if limit:
-        query = query.limit(limit)
-    return query.all()
-```
 
 **Why Optional Limit?**
 - Frontend can fetch all data for client-side filtering (fast)
@@ -320,56 +281,12 @@ def get_coursera_courses(
 
 ### 3. React Frontend
 
-#### State Management
-
-```javascript
-// Using useState + useMemo (no Redux needed)
-
-const [filters, setFilters] = useState({
-    source: 'all',
-    status: 'all',
-    searchQuery: ''
-});
-
-const [hackathons, setHackathons] = useState([]);
-
-// Memoized filtering - only recalculates when deps change
-const filteredHackathons = useMemo(() => {
-    let results = [...hackathons];
-    
-    if (filters.source !== 'all') {
-        results = results.filter(h => h.source === filters.source);
-    }
-    
-    if (filters.searchQuery) {
-        results = results.filter(h => 
-            h.title.toLowerCase().includes(filters.searchQuery.toLowerCase())
-        );
-    }
-    
-    return results;
-}, [hackathons, filters]);
-```
 
 **Performance Impact**:
 - Filter change: **800ms → 50ms** (93% faster)
 - Search typing: No lag (instant updates)
 
 ---
-
-## ⚖️ Design Decisions & Trade-offs
-
-### 1. Scraping vs. APIs
-
-| Factor | Web Scraping ✓ | Official APIs |
-|--------|---------------|---------------|
-| **Cost** | Free | $500-5000/month |
-| **Coverage** | Any website | Limited partners |
-| **Reliability** | 90% (UI dependent) | 99.9% (stable) |
-| **Legality** | Gray (but public data) | Fully compliant |
-
-**Choice**: Scraping for MVP → Migrate to APIs at scale
-
 ### 2. MySQL Database
 
 **Why MySQL over PostgreSQL/MongoDB?**
@@ -390,42 +307,6 @@ graph TD
     style H fill:#90EE90
 ```
 
-**Reasons**:
-- Data is structured (predictable fields)
-- Simple queries (no complex joins)
-- ACID compliance (prevent duplicates)
-- Better FastAPI integration
-
-### 3. Monolith Architecture
-
-**Why Not Microservices?**
-- Small team (1-5 developers)
-- Simple deployment (one container)
-- No need for distributed systems complexity
-- Easy database transactions
-
-**When to Split?**
-- Scrapers use 80%+ CPU → separate service
-- Need 100x read scaling → separate read replicas
-- Team grows to 10+ people
-
-### 4. Client-Side Filtering
-
-**Hybrid Approach**:
-```javascript
-// Fetch once from API
-const data = await fetch('/hackathons/devpost?limit=1000');
-
-// Filter instantly on client
-const filtered = data.filter(h => h.status === 'open');
-```
-
-**Why?**
-- Dataset: 50-1000 records (fits in memory)
-- Speed: JS filtering is 10x faster than API calls
-- UX: Instant updates, no loading spinners
-
----
 
 ## 🎯 What I Built
 
@@ -461,21 +342,6 @@ const filtered = data.filter(h => h.status === 'open');
 - Detects remote positions
 - Saves to `student_internships` table
 
-### API Endpoints Created
-
-**Courses**:
-- `GET /courses/coursera` - List Coursera courses
-- `GET /courses/udemy` - List Udemy courses  
-- `GET /courses/counts` - Get total counts
-
-**Hackathons**:
-- `GET /hackathons/devpost` - List Devpost hackathons
-- `GET /hackathons/lablab` - List LabLab hackathons
-
-**Internships**:
-- `GET /internships/` - List student internships
-
-All endpoints support `skip` and `limit` parameters for pagination.
 
 ### Frontend Pages Built
 
@@ -583,54 +449,6 @@ npm install
 npm run dev
 ```
 
-### Access
-
-- Frontend: http://localhost:5173
-- Backend: http://localhost:8000
-- API Docs: http://localhost:8000/docs
-
----
-
-## 📡 API Examples
-
-### Get Coursera Courses
-```http
-GET /courses/coursera?skip=0&limit=50
-```
-
-**Response**:
-```json
-[
-  {
-    "id": 1,
-    "title": "Machine Learning",
-    "link": "https://coursera.org/learn/...",
-    "provider": "Stanford",
-    "scraped_at": "2025-01-10T15:30:00Z"
-  }
-]
-```
-
-### Get Hackathons
-```http
-GET /hackathons/devpost?limit=10
-```
-
-**Response**:
-```json
-[
-  {
-    "id": 1,
-    "title": "AI Hackathon",
-    "prize_amount": "$10,000",
-    "participants": 1523,
-    "status": "open",
-    "days_left": "15 days"
-  }
-]
-```
-
----
 
 ## 📞 Contact
 
@@ -640,3 +458,4 @@ GET /hackathons/devpost?limit=10
 ---
 
 **Built with ❤️ for students and developers**
+
