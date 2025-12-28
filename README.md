@@ -453,9 +453,10 @@ npm run dev
 ## 📞 Contact
 
 - **Email**: asten@gmail.com
-- **Location**: M'Sila, Algeria
+- **Location**: Algeria
 
 ---
 
 **Built with ❤️ for students and developers**
+
 
