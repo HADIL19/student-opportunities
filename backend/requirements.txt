@@ -1,0 +1,28 @@
+# FastAPI & Server
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+
+# Database 
+sqlalchemy==2.0.23
+mysql-connector-python==8.0.33
+
+# Scraping - BeautifulSoup (simple)
+beautifulsoup4==4.12.2
+requests==2.31.0
+lxml==4.9.3
+
+# Scraping - Selenium (browser automation)
+selenium==4.15.2
+webdriver-manager==4.0.1
+
+# Utilities
+python-dotenv==1.0.0
+python-dateutil==2.8.2
+
+# Background Jobs
+apscheduler==3.10.4
+
+# Development
+pytest==7.4.3
+httpx==0.25.2
