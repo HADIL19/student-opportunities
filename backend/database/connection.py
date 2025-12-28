@@ -2,25 +2,24 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
-from pathlib import Path
 from dotenv import load_dotenv
 
-# Load .env from project root
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-load_dotenv(BASE_DIR / '.env')
+# Load environment variables
+load_dotenv()
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "mysql+pymysql://root:SimplePass123@localhost/student_opportunities",
-)
+# Get database URL from environment
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-print(f"DEBUG connection.py: Using DATABASE_URL = {DATABASE_URL}")
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL not found in environment variables")
 
+# Create database engine and session
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 def get_db():
+    """Dependency for FastAPI routes to get database session"""
     db = SessionLocal()
     try:
         yield db
