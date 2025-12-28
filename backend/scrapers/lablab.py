@@ -2,7 +2,7 @@ import sys
 import os
 
 # Add the backend directory to Python path
-backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, backend_path)
 
 from selenium import webdriver
@@ -18,10 +18,11 @@ from datetime import datetime
 from sqlalchemy.exc import IntegrityError
 
 # Import from database folder
-from database.db import SessionLocal
-from database.models import Hackathon
+from database.connection import SessionLocal
+from database.models import Hackathon, Competition
+from scrapers.classifier import classify_event
 
-class DevpostScraper:
+class LablabScraper:
     def __init__(self, headless=True):
         """Initialize the Selenium WebDriver"""
         chrome_options = Options()
@@ -39,9 +40,10 @@ class DevpostScraper:
         )
         self.wait = WebDriverWait(self.driver, 10)
         self.hackathons = []
+        self.competitions = []
     
-    def scrape_hackathons(self, url="https://devpost.com/hackathons", max_pages=1):
-        """Scrape hackathons from Devpost"""
+    def scrape_hackathons(self, url="https://lablab.ai/challenges", max_pages=1):
+        """Scrape hackathons from Lablab.ai"""
         try:
             print(f"🚀 Navigating to {url}...")
             self.driver.get(url)
@@ -56,10 +58,10 @@ class DevpostScraper:
                 self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
                 time.sleep(2)
                 
-                # Find all hackathon tiles
+                # Find all hackathon tiles (adjust selector based on site structure)
                 hackathon_tiles = self.driver.find_elements(
                     By.CSS_SELECTOR, 
-                    ".hackathon-tile"
+                    ".challenge-card"  # Placeholder, adjust based on actual site
                 )
                 
                 print(f"Found {len(hackathon_tiles)} hackathons on this page")
@@ -68,16 +70,20 @@ class DevpostScraper:
                     try:
                         hackathon_data = self.extract_hackathon_data(tile)
                         if hackathon_data:
-                            self.hackathons.append(hackathon_data)
-                            print(f"✅ Scraped: {hackathon_data['title'][:50]}...")
+                            event_type = classify_event(hackathon_data)
+                            if event_type == "hackathon":
+                                self.hackathons.append(hackathon_data)
+                            elif event_type == "competition":
+                                self.competitions.append(hackathon_data)
+                            print(f"✅ Scraped ({event_type}): {hackathon_data['title'][:50]}...")
                     except Exception as e:
                         print(f"❌ Error scraping tile: {e}")
                         continue
                 
-                # Try to go to next page
+                # Try to go to next page (adjust based on site)
                 if page < max_pages - 1:
                     try:
-                        next_button = self.driver.find_element(By.CSS_SELECTOR, "a.next_page")
+                        next_button = self.driver.find_element(By.CSS_SELECTOR, "a.next_page")  # Adjust selector
                         if "disabled" not in next_button.get_attribute("class"):
                             next_button.click()
                             time.sleep(3)
@@ -89,7 +95,8 @@ class DevpostScraper:
                         break
             
             print(f"\n🎉 Total hackathons scraped: {len(self.hackathons)}")
-            return self.hackathons
+            print(f"🎉 Total competitions scraped: {len(self.competitions)}")
+            return self.hackathons + self.competitions
             
         except Exception as e:
             print(f"❌ Error during scraping: {e}")
@@ -98,17 +105,17 @@ class DevpostScraper:
     def extract_hackathon_data(self, tile):
         """Extract data from a single hackathon tile"""
         try:
-            # Title
-            title_elem = tile.find_element(By.CSS_SELECTOR, "h3")
+            # Title (adjust selectors based on site)
+            title_elem = tile.find_element(By.CSS_SELECTOR, "h3")  # Adjust
             title = title_elem.text.strip()
             
             # Link
-            link_elem = tile.find_element(By.CSS_SELECTOR, "a.tile-anchor")
+            link_elem = tile.find_element(By.CSS_SELECTOR, "a")  # Adjust
             link = link_elem.get_attribute("href")
             
-            # Status and days left
+            # Status and days left (adjust)
             try:
-                status_elem = tile.find_element(By.CSS_SELECTOR, ".status-label")
+                status_elem = tile.find_element(By.CSS_SELECTOR, ".status")  # Adjust
                 days_left = status_elem.text.strip()
                 
                 if "left" in days_left.lower():
@@ -121,54 +128,47 @@ class DevpostScraper:
                 status = "unknown"
                 days_left = "N/A"
             
-            # Location
+            # Location (adjust)
             try:
-                location_elem = tile.find_element(By.CSS_SELECTOR, ".info-with-icon span")
+                location_elem = tile.find_element(By.CSS_SELECTOR, ".location")  # Adjust
                 location = location_elem.text.strip()
             except:
                 location = "N/A"
             
-            # Submission period
+            # Submission period (adjust)
             try:
-                period_elem = tile.find_element(By.CSS_SELECTOR, ".submission-period")
+                period_elem = tile.find_element(By.CSS_SELECTOR, ".period")  # Adjust
                 submission_period = period_elem.text.strip()
             except:
                 submission_period = "N/A"
             
-            # Prize amount
+            # Prize amount (adjust)
             try:
-                prize_elem = tile.find_element(By.CSS_SELECTOR, ".prize-amount")
+                prize_elem = tile.find_element(By.CSS_SELECTOR, ".prize")  # Adjust
                 prize_amount = prize_elem.text.strip()
             except:
                 prize_amount = "N/A"
             
-            # Participants
+            # Participants (adjust)
             try:
-                participants_elem = tile.find_element(By.CSS_SELECTOR, ".participants strong")
+                participants_elem = tile.find_element(By.CSS_SELECTOR, ".participants")  # Adjust
                 participants = int(participants_elem.text.strip().replace(",", ""))
             except:
                 participants = 0
             
-            # Host
+            # Host (adjust)
             try:
-                host_elem = tile.find_element(By.CSS_SELECTOR, ".host-label")
-                host = host_elem.get_attribute("title")
+                host_elem = tile.find_element(By.CSS_SELECTOR, ".host")  # Adjust
+                host = host_elem.text.strip()
             except:
                 host = "N/A"
             
-            # Themes
+            # Themes (adjust)
             try:
-                theme_elems = tile.find_elements(By.CSS_SELECTOR, ".theme-label")
-                themes = ", ".join([theme.get_attribute("title") for theme in theme_elems])
+                theme_elems = tile.find_elements(By.CSS_SELECTOR, ".theme")  # Adjust
+                themes = ", ".join([theme.text.strip() for theme in theme_elems])
             except:
                 themes = "N/A"
-            
-            # Managed by Devpost
-            try:
-                managed_elem = tile.find_element(By.CSS_SELECTOR, ".managed-by-devpost")
-                managed_by_devpost = "Yes"
-            except:
-                managed_by_devpost = "No"
             
             return {
                 "title": title,
@@ -180,7 +180,7 @@ class DevpostScraper:
                 "participants": participants,
                 "host": host,
                 "themes": themes,
-                "managed_by_devpost": managed_by_devpost,
+                "managed_by_devpost": "No",  # Since it's Lablab
                 "days_left": days_left,
                 "scraped_at": datetime.now().isoformat()
             }
@@ -189,11 +189,12 @@ class DevpostScraper:
             print(f"Error extracting hackathon data: {e}")
             return None
     
-    def save_to_json(self, filename="devpost_hackathons.json"):
+    def save_to_json(self, filename="lablab_events.json"):
         """Save scraped data to JSON file"""
         try:
+            all_events = {"hackathons": self.hackathons, "competitions": self.competitions}
             with open(filename, 'w', encoding='utf-8') as f:
-                json.dump(self.hackathons, f, indent=2, ensure_ascii=False)
+                json.dump(all_events, f, indent=2, ensure_ascii=False)
             print(f"\n💾 Data saved to {filename}")
             return True
         except Exception as e:
@@ -203,10 +204,12 @@ class DevpostScraper:
     def save_to_database(self):
         """Save scraped data to MySQL database"""
         db = SessionLocal()
-        saved_count = 0
+        saved_hack = 0
+        saved_comp = 0
         skipped_count = 0
         
         try:
+            # Save hackathons
             for hackathon_data in self.hackathons:
                 try:
                     hackathon = Hackathon(
@@ -225,17 +228,44 @@ class DevpostScraper:
                     
                     db.add(hackathon)
                     db.commit()
-                    saved_count += 1
+                    saved_hack += 1
                     
                 except IntegrityError:
                     db.rollback()
                     skipped_count += 1
-                    print(f"⚠️  Skipped duplicate: {hackathon_data['title'][:50]}...")
                 except Exception as e:
                     db.rollback()
-                    print(f"❌ Error saving {hackathon_data['title'][:50]}: {e}")
+                    print(f"❌ Error saving hackathon {hackathon_data['title'][:50]}: {e}")
             
-            print(f"\n✅ Database saved: {saved_count} new hackathons")
+            # Save competitions
+            for comp_data in self.competitions:
+                try:
+                    competition = Competition(
+                        title=comp_data["title"],
+                        link=comp_data["link"],
+                        status=comp_data["status"],
+                        location=comp_data["location"],
+                        submission_period=comp_data["submission_period"],
+                        prize_amount=comp_data["prize_amount"],
+                        participants=comp_data["participants"],
+                        host=comp_data["host"],
+                        themes=comp_data["themes"],
+                        managed_by_devpost=comp_data["managed_by_devpost"],
+                        days_left=comp_data["days_left"]
+                    )
+                    
+                    db.add(competition)
+                    db.commit()
+                    saved_comp += 1
+                    
+                except IntegrityError:
+                    db.rollback()
+                    skipped_count += 1
+                except Exception as e:
+                    db.rollback()
+                    print(f"❌ Error saving competition {comp_data['title'][:50]}: {e}")
+            
+            print(f"\n✅ Database saved: {saved_hack} new hackathons, {saved_comp} new competitions")
             print(f"⚠️  Skipped: {skipped_count} duplicates")
             
         finally:
@@ -250,17 +280,17 @@ class DevpostScraper:
 def main():
     """Main execution function"""
     print("=" * 60)
-    print("🎯 DEVPOST HACKATHON SCRAPER")
+    print("🎯 LABLAB HACKATHON SCRAPER")
     print("=" * 60)
     
-    scraper = DevpostScraper(headless=False)  # Set to True for headless mode
+    scraper = LablabScraper(headless=False)  # Set to True for headless mode
     
     try:
         # Scrape hackathons (adjust max_pages as needed)
         scraper.scrape_hackathons(max_pages=2)
         
         # Save to JSON
-        scraper.save_to_json("devpost_hackathons.json")
+        scraper.save_to_json("lablab_hackathons.json")
         
         # Save to database
         scraper.save_to_database()

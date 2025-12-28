@@ -1,40 +1,13 @@
 import json
-import sys
-import os
 import time
 from pathlib import Path
 
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.chrome import ChromeDriverManager
 
-# Add database folder to path
-sys.path.append(str(Path(__file__).parent.parent.parent / 'database'))
-from db import Base, SessionLocal, engine
-from models import Course
-from sqlalchemy.orm import Session
+from backend.scrapers.base import get_driver
+from backend.database.connection import SessionLocal, engine
+from backend.database.models import Course
 
-# Create tables if they don't exist
-Base.metadata.create_all(bind=engine)
-
-# -------- Selenium driver setup --------
-def get_driver():
-    options = Options()
-    # options.add_argument("--headless")  # DISABLED for debugging
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-blink-features=AutomationControlled")
-    options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    options.add_experimental_option('useAutomationExtension', False)
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-    driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-    return driver
-
-# -------- Scraper --------
 def scrape_coursera_selenium(query="free", max_courses=50):
     print(f"🚀 Starting scrape for '{query}' (max {max_courses})")
     url = f"https://www.coursera.org/search?query={query}"
@@ -124,12 +97,11 @@ def scrape_coursera_selenium(query="free", max_courses=50):
     print(f"\n🎉 Scraping complete! Total courses: {len(courses)}")
     return courses[:max_courses]
 
-# -------- Save to DB --------
 def save_courses_to_db(courses):
     if not courses:
         print("No courses to save to DB.")
         return
-    db: Session = SessionLocal()
+    db = SessionLocal()
     saved = 0
     for c in courses:
         # Skip duplicates
@@ -140,7 +112,6 @@ def save_courses_to_db(courses):
     db.close()
     print(f"✅ Saved {saved} NEW courses to MySQL!")
 
-# -------- Save to JSON --------
 def save_courses_to_json(courses, filename="coursera_courses.json"):
     if not courses:
         print("No courses to save to JSON.")
@@ -149,7 +120,6 @@ def save_courses_to_json(courses, filename="coursera_courses.json"):
         json.dump(courses, f, ensure_ascii=False, indent=2)
     print(f"💾 Saved {len(courses)} courses to {filename}!")
 
-# -------- Main --------
 if __name__ == "__main__":
     query = "free"
     max_courses = 50
