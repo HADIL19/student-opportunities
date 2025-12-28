@@ -1,0 +1,14 @@
+[
+  {
+    "title": "View this iOS & Swift course",
+    "link": "https://www.udemy.com/course/ios-13-app-development-bootcamp/",
+    "price": "Unknown",
+    "provider": "Udemy"
+  },
+  {
+    "title": "View this AWS course",
+    "link": "https://www.udemy.com/course/aws-certified-developer-associate-dva-c01/",
+    "price": "Unknown",
+    "provider": "Udemy"
+  }
+]
