@@ -2,11 +2,11 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import About from './components/About';
-import Description from './components/description';
+import Description from './components/Description';
 import Content from './components/Content';
 import Contact from './components/Contact';
 import Hackathons from './components/Hackathons';
-import Internships from './components/Interships';
+import Internships from './components/Internships';
 import Courses from './components/Courses';
 const App = () => {
   return (
